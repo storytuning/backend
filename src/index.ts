@@ -7,8 +7,8 @@ import path from "path";
 import { Readable } from "stream";
 import { firebaseDB } from "./utils/firebase";
 import { db } from "./config/firebase";
-import { modelDownloader } from './utils/modelDownloader';
-import { ModelInference } from './utils/modelInference';
+import { modelDownloader } from "./utils/modelDownloader";
+import { ModelInference } from "./utils/modelInference";
 
 // 인터페이스 추가
 interface ModelData {
@@ -187,7 +187,7 @@ app.post("/api/update-nft-info", async (req, res) => {
     if (ipId) {
       updateData.ipId = ipId;
     }
-    
+
     // licenseTermsIds가 있으면 추가
     if (licenseTermsIds && Array.isArray(licenseTermsIds)) {
       updateData.licenseTermsIds = licenseTermsIds;
@@ -224,9 +224,25 @@ app.get("/api/images/:address", async (req, res) => {
 // 파인튜닝 요청 처리 API 엔드포인트 추가
 app.post("/api/fine-tune-dataset", async (req, res) => {
   try {
-    const { walletAddress, modelName, description, selectedCids, selectedIpIds, selectedLicenseTermsIds } = req.body;
+    const {
+      walletAddress,
+      modelName,
+      description,
+      selectedCids,
+      selectedIpIds,
+      selectedLicenseTermsIds,
+    } = req.body;
 
-    if (!walletAddress || !modelName || !selectedCids || !selectedCids.length || !selectedIpIds || !selectedIpIds.length || !selectedLicenseTermsIds || !selectedLicenseTermsIds.length) {
+    if (
+      !walletAddress ||
+      !modelName ||
+      !selectedCids ||
+      !selectedCids.length ||
+      !selectedIpIds ||
+      !selectedIpIds.length ||
+      !selectedLicenseTermsIds ||
+      !selectedLicenseTermsIds.length
+    ) {
       return res.status(400).json({ error: "필수 정보가 누락되었습니다." });
     }
 
@@ -304,7 +320,7 @@ app.get("/api/models/:walletAddress", async (req, res) => {
     // Firebase에서 해당 사용자의 모든 모델 조회
     const userModelsRef = `fine-tune/${walletAddress}`;
     console.log("Firebase 참조 경로:", userModelsRef);
-    
+
     const userModels = await firebaseDB.get(userModelsRef);
     console.log("Firebase 조회 결과:", JSON.stringify(userModels, null, 2));
 
@@ -316,27 +332,28 @@ app.get("/api/models/:walletAddress", async (req, res) => {
     // 모델 데이터를 배열로 변환하여 반환
     const modelsList: ModelData[] = Object.entries(
       userModels as Record<string, any>
-    ).map(
-      ([modelName, modelData]) => {
-        console.log(`모델 변환 - ${modelName}:`, JSON.stringify(modelData, null, 2));
-        // modelData에서 필요한 필드들 추출하고 기본값 설정
-        const modelInfo = modelData as Record<string, any>;
-        
-        return {
-          modelName,
-          walletAddress,
-          status: modelInfo.status || "unknown",
-          selectedCids: modelInfo.selectedCids || [],
-          selectedIpIds: modelInfo.selectedIpIds || [],
-          selectedLicenseTermsIds: modelInfo.selectedLicenseTermsIds || [],
-          createdAt: modelInfo.createdAt || new Date().toISOString(),
-          updatedAt: modelInfo.updatedAt || new Date().toISOString(),
-          description: modelInfo.description || "",
-          modelIpfsHash: modelInfo.modelIpfsHash || modelInfo.modelCid || null,
-          ...modelInfo  // 나머지 필드들도 포함
-        } as ModelData;
-      }
-    );
+    ).map(([modelName, modelData]) => {
+      console.log(
+        `모델 변환 - ${modelName}:`,
+        JSON.stringify(modelData, null, 2)
+      );
+      // modelData에서 필요한 필드들 추출하고 기본값 설정
+      const modelInfo = modelData as Record<string, any>;
+
+      return {
+        modelName,
+        walletAddress,
+        status: modelInfo.status || "unknown",
+        selectedCids: modelInfo.selectedCids || [],
+        selectedIpIds: modelInfo.selectedIpIds || [],
+        selectedLicenseTermsIds: modelInfo.selectedLicenseTermsIds || [],
+        createdAt: modelInfo.createdAt || new Date().toISOString(),
+        updatedAt: modelInfo.updatedAt || new Date().toISOString(),
+        description: modelInfo.description || "",
+        modelIpfsHash: modelInfo.modelIpfsHash || modelInfo.modelCid || null,
+        ...modelInfo, // 나머지 필드들도 포함
+      } as ModelData;
+    });
 
     console.log("최종 응답 데이터:", JSON.stringify(modelsList, null, 2));
 
@@ -362,8 +379,11 @@ app.get("/api/models", async (req, res) => {
     // Firebase에서 모든 사용자의 모델 조회
     const allModelsRef = `fine-tune`;
     const allModels = await firebaseDB.get(allModelsRef);
-    
-    console.log("Firebase에서 가져온 모든 모델 데이터:", JSON.stringify(allModels, null, 2));
+
+    console.log(
+      "Firebase에서 가져온 모든 모델 데이터:",
+      JSON.stringify(allModels, null, 2)
+    );
 
     if (!allModels) {
       return res.json({ success: true, data: [] });
@@ -379,23 +399,28 @@ app.get("/api/models", async (req, res) => {
             ([modelName, modelData]) => {
               // modelData에서 필요한 필드들 추출하고 기본값 설정
               const modelInfo = modelData as Record<string, any>;
-              
+
               // 데이터가 있으면 출력하여 디버깅
-              console.log(`모델 정보 (${walletAddress}/${modelName}):`, JSON.stringify(modelInfo, null, 2));
-              
+              console.log(
+                `모델 정보 (${walletAddress}/${modelName}):`,
+                JSON.stringify(modelInfo, null, 2)
+              );
+
               // 명시적으로 필요한 필드들을 추출
-              const modelIpfsHash = modelInfo.modelIpfsHash || modelInfo.modelCid || null;
+              const modelIpfsHash =
+                modelInfo.modelIpfsHash || modelInfo.modelCid || null;
               const selectedCids = modelInfo.selectedCids || [];
               const selectedIpIds = modelInfo.selectedIpIds || [];
-              const selectedLicenseTermsIds = modelInfo.selectedLicenseTermsIds || [];
-              
+              const selectedLicenseTermsIds =
+                modelInfo.selectedLicenseTermsIds || [];
+
               console.log(`추출된 주요 필드 (${modelName}):`, {
                 modelIpfsHash,
                 selectedCids,
                 selectedIpIds,
-                selectedLicenseTermsIds
+                selectedLicenseTermsIds,
               });
-              
+
               const convertedModel = {
                 modelName,
                 walletAddress,
@@ -408,9 +433,9 @@ app.get("/api/models", async (req, res) => {
                 description: modelInfo.description || "",
                 // 명시적으로 중요 필드 추가
                 modelIpfsHash: modelIpfsHash,
-                ...modelInfo
+                ...modelInfo,
               } as ModelData;
-              
+
               modelsList.push(convertedModel);
             }
           );
@@ -449,9 +474,9 @@ app.post("/api/generate-image", async (req, res) => {
     } = req.body;
 
     if (!modelName || !walletAddress || !prompt) {
-      return res
-        .status(400)
-        .json({ error: "Model name, wallet address, and prompt are required." });
+      return res.status(400).json({
+        error: "Model name, wallet address, and prompt are required.",
+      });
     }
 
     // Check model existence and status
@@ -464,25 +489,25 @@ app.post("/api/generate-image", async (req, res) => {
     }
 
     if (modelData.status !== "completed") {
-      return res
-        .status(400)
-        .json({ error: "Model training is not completed" });
+      return res.status(400).json({ error: "Model training is not completed" });
     }
 
     // Download and prepare model
-    const modelPath = await modelDownloader.downloadModelFromIPFS(modelData.modelCid);
+    const modelPath = await modelDownloader.downloadModelFromIPFS(
+      modelData.modelCid
+    );
 
     // Initialize inference engine
     const inference = new ModelInference(modelPath);
-    
+
     // Generate images with explicit type
     const generatedImages: GeneratedImage[] = [];
-    
+
     for (let i = 0; i < numOfImages; i++) {
       const result = await inference.generateImage(prompt);
-      
+
       // Upload generated image to IPFS
-      const imageStream = Buffer.from(result.imageData, 'base64');
+      const imageStream = Buffer.from(result.imageData, "base64");
       const options = {
         pinataMetadata: {
           name: `${modelName}_generated_${Date.now()}_${i}`,
@@ -586,17 +611,17 @@ app.get("/api/generated-images/:walletAddress", async (req, res) => {
 // Firebase 데이터 확인용 임시 엔드포인트
 app.get("/api/debug/firebase/:path", async (req, res) => {
   try {
-    const path = req.params.path.replace(/\./g, '/');
+    const path = req.params.path.replace(/\./g, "/");
     console.log(`Firebase 디버그 - 경로: ${path}`);
-    
+
     const data = await firebaseDB.get(path);
     console.log(`Firebase 디버그 - 데이터:`, JSON.stringify(data, null, 2));
-    
+
     return res.json({
       success: true,
       path,
       exists: data !== null,
-      data
+      data,
     });
   } catch (error) {
     console.error("Firebase 데이터 조회 실패:", error);
@@ -607,4 +632,64 @@ app.get("/api/debug/firebase/:path", async (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+});
+
+// user가 라이센스 결제하고 받은 licenseTokenId
+// ✅ 1. 민팅된 라이선스 토큰을 저장하는 API
+app.post("/api/license-token", async (req, res) => {
+  const { walletAddress, licenseTokenIds } = req.body;
+
+  if (!walletAddress || !licenseTokenIds || !Array.isArray(licenseTokenIds)) {
+    return res
+      .status(400)
+      .json({ error: "walletAddress 또는 licenseTokenIds 누락" });
+  }
+
+  const userTokenRef = `licenseTokens/${walletAddress}`;
+  const existingData = (await firebaseDB.get(userTokenRef)) || { tokenIds: [] };
+
+  // 중복 없이 합치기
+  const updatedTokens = Array.from(
+    new Set([
+      ...existingData.tokenIds,
+      ...licenseTokenIds.map((id: any) => id.toString()),
+    ])
+  );
+
+  await firebaseDB.set(userTokenRef, { tokenIds: updatedTokens });
+  return res.json({ success: true, tokenIds: updatedTokens });
+});
+
+// ✅ 2. 사용자가 라이선스 토큰을 가지고 있는지 확인하는 API
+app.get("/api/license-token/:walletAddress", async (req, res) => {
+  const { walletAddress } = req.params;
+  const tokenData = await firebaseDB.get(`licenseTokens/${walletAddress}`);
+
+  return res.json({
+    success: true,
+    hasToken: tokenData?.tokenIds?.length > 0,
+    tokenIds: tokenData?.tokenIds || [],
+  });
+});
+
+// ✅ 3. 모델 사용 후 토큰 삭제 API (사용 처리)
+app.post("/api/license-token/use", async (req, res) => {
+  const { walletAddress, tokenId } = req.body;
+
+  if (!walletAddress || !tokenId) {
+    return res.status(400).json({ error: "walletAddress 또는 tokenId 누락" });
+  }
+
+  const userTokenRef = `licenseTokens/${walletAddress}`;
+  const existingData = await firebaseDB.get(userTokenRef);
+  if (!existingData || !Array.isArray(existingData.tokenIds)) {
+    return res.status(404).json({ error: "해당 유저의 토큰이 없습니다." });
+  }
+
+  const updatedTokens = existingData.tokenIds.filter(
+    (id: string) => id !== tokenId.toString()
+  );
+  await firebaseDB.set(userTokenRef, { tokenIds: updatedTokens });
+
+  return res.json({ success: true, removed: tokenId });
 });
