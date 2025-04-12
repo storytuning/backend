@@ -17,6 +17,8 @@ interface ModelData {
   description?: string;
   status: string;
   selectedCids: string[];
+  selectedIpIds: string[];
+  selectedLicenseTermsIds: string[];
   createdAt: string;
   updatedAt: string;
   [key: string]: any;
@@ -222,9 +224,9 @@ app.get("/api/images/:address", async (req, res) => {
 // 파인튜닝 요청 처리 API 엔드포인트 추가
 app.post("/api/fine-tune-dataset", async (req, res) => {
   try {
-    const { walletAddress, modelName, description, selectedCids, selectedIpIds } = req.body;
+    const { walletAddress, modelName, description, selectedCids, selectedIpIds, selectedLicenseTermsIds } = req.body;
 
-    if (!walletAddress || !modelName || !selectedCids || !selectedCids.length || !selectedIpIds || !selectedIpIds.length) {
+    if (!walletAddress || !modelName || !selectedCids || !selectedCids.length || !selectedIpIds || !selectedIpIds.length || !selectedLicenseTermsIds || !selectedLicenseTermsIds.length) {
       return res.status(400).json({ error: "필수 정보가 누락되었습니다." });
     }
 
@@ -236,6 +238,7 @@ app.post("/api/fine-tune-dataset", async (req, res) => {
       description: description || "",
       selectedCids,
       selectedIpIds,
+      selectedLicenseTermsIds,
       status: "pending", // pending, processing, completed, failed
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -324,11 +327,12 @@ app.get("/api/models/:walletAddress", async (req, res) => {
           walletAddress,
           status: modelInfo.status || "unknown",
           selectedCids: modelInfo.selectedCids || [],
+          selectedIpIds: modelInfo.selectedIpIds || [],
+          selectedLicenseTermsIds: modelInfo.selectedLicenseTermsIds || [],
           createdAt: modelInfo.createdAt || new Date().toISOString(),
           updatedAt: modelInfo.updatedAt || new Date().toISOString(),
           description: modelInfo.description || "",
           modelIpfsHash: modelInfo.modelIpfsHash || modelInfo.modelCid || null,
-          selectedIpIds: modelInfo.selectedIpIds || [],
           ...modelInfo  // 나머지 필드들도 포함
         } as ModelData;
       }
@@ -383,11 +387,13 @@ app.get("/api/models", async (req, res) => {
               const modelIpfsHash = modelInfo.modelIpfsHash || modelInfo.modelCid || null;
               const selectedCids = modelInfo.selectedCids || [];
               const selectedIpIds = modelInfo.selectedIpIds || [];
+              const selectedLicenseTermsIds = modelInfo.selectedLicenseTermsIds || [];
               
               console.log(`추출된 주요 필드 (${modelName}):`, {
                 modelIpfsHash,
                 selectedCids,
-                selectedIpIds
+                selectedIpIds,
+                selectedLicenseTermsIds
               });
               
               const convertedModel = {
@@ -395,13 +401,13 @@ app.get("/api/models", async (req, res) => {
                 walletAddress,
                 status: modelInfo.status || "unknown",
                 selectedCids: selectedCids,
+                selectedIpIds: selectedIpIds,
+                selectedLicenseTermsIds: selectedLicenseTermsIds,
                 createdAt: modelInfo.createdAt || new Date().toISOString(),
                 updatedAt: modelInfo.updatedAt || new Date().toISOString(),
                 description: modelInfo.description || "",
                 // 명시적으로 중요 필드 추가
                 modelIpfsHash: modelIpfsHash,
-                selectedIpIds: selectedIpIds,
-                // 원본 데이터에 있는 다른 필드들도 포함
                 ...modelInfo
               } as ModelData;
               

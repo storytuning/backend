@@ -17,6 +17,7 @@ interface ImageData {
   tokenId?: string;
   mintedAt?: string;
   ipId?: string;
+  licenseTermsIds?: string[];
 }
 
 interface ImageEntry {
