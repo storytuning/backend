@@ -693,3 +693,39 @@ app.post("/api/license-token/use", async (req, res) => {
 
   return res.json({ success: true, removed: tokenId });
 });
+
+// after model register
+// 모델 정보 업데이트 API
+app.post("/api/update-model-info", async (req, res) => {
+  try {
+    const { walletAddress, modelName, ipId, licenseTermsId } = req.body;
+
+    if (!walletAddress || !modelName) {
+      return res
+        .status(400)
+        .json({ error: "walletAddress 또는 modelName이 누락되었습니다." });
+    }
+
+    const modelRef = `fine-tune/${walletAddress}/${modelName}`;
+    const modelData = await firebaseDB.get(modelRef);
+
+    if (!modelData) {
+      return res.status(404).json({ error: "모델 정보를 찾을 수 없습니다." });
+    }
+
+    const updatedData = {
+      ...(ipId && { ipId }),
+      ...(licenseTermsId && { licenseTermsId }),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await firebaseDB.update(modelRef, updatedData);
+
+    res.json({ success: true, updatedData });
+  } catch (error) {
+    console.error("모델 정보 업데이트 실패:", error);
+    res
+      .status(500)
+      .json({ error: "모델 정보 업데이트 중 오류가 발생했습니다." });
+  }
+});
