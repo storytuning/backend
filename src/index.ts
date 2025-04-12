@@ -165,7 +165,7 @@ app.post("/api/upload", upload.array("images"), async (req, res) => {
 // NFT 민팅 성공 후 Firebase에 tokenId 업데이트
 app.post("/api/update-nft-info", async (req, res) => {
   try {
-    const { cid, tokenId, walletAddress, ipId } = req.body;
+    const { cid, tokenId, walletAddress, ipId, licenseTermsIds } = req.body;
 
     // 이미지 찾기
     const image = await firebaseDB.findImageByCID(cid, walletAddress);
@@ -184,6 +184,11 @@ app.post("/api/update-nft-info", async (req, res) => {
     // ipId가 있으면 추가
     if (ipId) {
       updateData.ipId = ipId;
+    }
+    
+    // licenseTermsIds가 있으면 추가
+    if (licenseTermsIds && Array.isArray(licenseTermsIds)) {
+      updateData.licenseTermsIds = licenseTermsIds;
     }
 
     // NFT 정보 업데이트
@@ -291,12 +296,17 @@ app.get("/api/fine-tune-status/:walletAddress/:modelName", async (req, res) => {
 app.get("/api/models/:walletAddress", async (req, res) => {
   try {
     const { walletAddress } = req.params;
+    console.log("모델 조회 요청 - 지갑 주소:", walletAddress);
 
     // Firebase에서 해당 사용자의 모든 모델 조회
     const userModelsRef = `fine-tune/${walletAddress}`;
+    console.log("Firebase 참조 경로:", userModelsRef);
+    
     const userModels = await firebaseDB.get(userModelsRef);
+    console.log("Firebase 조회 결과:", JSON.stringify(userModels, null, 2));
 
     if (!userModels) {
+      console.log("Firebase에서 모델 데이터 찾을 수 없음");
       return res.json({ success: true, data: [] });
     }
 
@@ -304,13 +314,27 @@ app.get("/api/models/:walletAddress", async (req, res) => {
     const modelsList: ModelData[] = Object.entries(
       userModels as Record<string, any>
     ).map(
-      ([modelName, modelData]) =>
-        ({
+      ([modelName, modelData]) => {
+        console.log(`모델 변환 - ${modelName}:`, JSON.stringify(modelData, null, 2));
+        // modelData에서 필요한 필드들 추출하고 기본값 설정
+        const modelInfo = modelData as Record<string, any>;
+        
+        return {
           modelName,
           walletAddress,
-          ...(modelData as object),
-        } as ModelData)
+          status: modelInfo.status || "unknown",
+          selectedCids: modelInfo.selectedCids || [],
+          createdAt: modelInfo.createdAt || new Date().toISOString(),
+          updatedAt: modelInfo.updatedAt || new Date().toISOString(),
+          description: modelInfo.description || "",
+          modelIpfsHash: modelInfo.modelIpfsHash || modelInfo.modelCid || null,
+          selectedIpIds: modelInfo.selectedIpIds || [],
+          ...modelInfo  // 나머지 필드들도 포함
+        } as ModelData;
+      }
     );
+
+    console.log("최종 응답 데이터:", JSON.stringify(modelsList, null, 2));
 
     // 최신 모델이 먼저 오도록 정렬
     modelsList.sort(
@@ -334,6 +358,8 @@ app.get("/api/models", async (req, res) => {
     // Firebase에서 모든 사용자의 모델 조회
     const allModelsRef = `fine-tune`;
     const allModels = await firebaseDB.get(allModelsRef);
+    
+    console.log("Firebase에서 가져온 모든 모델 데이터:", JSON.stringify(allModels, null, 2));
 
     if (!allModels) {
       return res.json({ success: true, data: [] });
@@ -347,16 +373,47 @@ app.get("/api/models", async (req, res) => {
         if (userModels && typeof userModels === "object") {
           Object.entries(userModels as Record<string, any>).forEach(
             ([modelName, modelData]) => {
-              modelsList.push({
+              // modelData에서 필요한 필드들 추출하고 기본값 설정
+              const modelInfo = modelData as Record<string, any>;
+              
+              // 데이터가 있으면 출력하여 디버깅
+              console.log(`모델 정보 (${walletAddress}/${modelName}):`, JSON.stringify(modelInfo, null, 2));
+              
+              // 명시적으로 필요한 필드들을 추출
+              const modelIpfsHash = modelInfo.modelIpfsHash || modelInfo.modelCid || null;
+              const selectedCids = modelInfo.selectedCids || [];
+              const selectedIpIds = modelInfo.selectedIpIds || [];
+              
+              console.log(`추출된 주요 필드 (${modelName}):`, {
+                modelIpfsHash,
+                selectedCids,
+                selectedIpIds
+              });
+              
+              const convertedModel = {
                 modelName,
                 walletAddress,
-                ...(modelData as object),
-              } as ModelData);
+                status: modelInfo.status || "unknown",
+                selectedCids: selectedCids,
+                createdAt: modelInfo.createdAt || new Date().toISOString(),
+                updatedAt: modelInfo.updatedAt || new Date().toISOString(),
+                description: modelInfo.description || "",
+                // 명시적으로 중요 필드 추가
+                modelIpfsHash: modelIpfsHash,
+                selectedIpIds: selectedIpIds,
+                // 원본 데이터에 있는 다른 필드들도 포함
+                ...modelInfo
+              } as ModelData;
+              
+              modelsList.push(convertedModel);
             }
           );
         }
       }
     );
+
+    // 최종 응답 데이터 로깅
+    console.log("최종 응답 데이터:", JSON.stringify(modelsList, null, 2));
 
     // 최신 모델이 먼저 오도록 정렬
     modelsList.sort(
@@ -517,6 +574,27 @@ app.get("/api/generated-images/:walletAddress", async (req, res) => {
     res
       .status(500)
       .json({ error: "생성 이미지 목록 조회 중 오류가 발생했습니다" });
+  }
+});
+
+// Firebase 데이터 확인용 임시 엔드포인트
+app.get("/api/debug/firebase/:path", async (req, res) => {
+  try {
+    const path = req.params.path.replace(/\./g, '/');
+    console.log(`Firebase 디버그 - 경로: ${path}`);
+    
+    const data = await firebaseDB.get(path);
+    console.log(`Firebase 디버그 - 데이터:`, JSON.stringify(data, null, 2));
+    
+    return res.json({
+      success: true,
+      path,
+      exists: data !== null,
+      data
+    });
+  } catch (error) {
+    console.error("Firebase 데이터 조회 실패:", error);
+    res.status(500).json({ error: "데이터 조회 중 오류가 발생했습니다" });
   }
 });
 

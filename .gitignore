@@ -30,6 +30,7 @@ yarn-error.log*
 /coverage
 
 # Prisma
+/prisma/
 /prisma/*.db
 /prisma/migrations/
 
